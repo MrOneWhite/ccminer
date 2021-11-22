@@ -1,6 +1,6 @@
 /*
 Author: Mathieu Mailhos
-Filename: mining.go
+Filename: minin.go
 Description: Functions for mining a Block Header
 */
 
@@ -9,59 +9,35 @@ package mining
 import (
 	"errors"
 	"gobtcminer/block"
+	"strconv"
 )
 
 //Macros
 const MAX_NONCE uint32 = 4294967295
 
-//Mining entity defined by an Id. Worker.
-type Miner struct {
-	Id           int
-	MiningPool   chan chan Chunk
-	BlockChannel chan Chunk
-	quit         chan bool
-}
-
-// Creating Miner 'Worker'
-func NewMiner(id int, miningpool chan chan Chunk) Miner {
-	return Miner{
-		Id:           id,
-		MiningPool:   miningpool,
-		BlockChannel: make(chan Chunk),
-		quit:         make(chan bool)}
-}
-
-//Start mining: receive block channels and execute them
-func (mine Miner) Start() {
-	go func() {
-		for {
-			//We register the mine into the mining pool
-			mine.MiningPool <- mine.BlockChannel
-			select {
-			//We then receive a chunk to work on or we quit
-			case job := <-mine.BlockChannel:
-				mine.mining(job)
-			case <-mine.quit:
-				return
-			}
-		}
-	}()
-}
-
-//Tells the Miner to stop working
-func (mine Miner) Stop() {
-	go func() {
-		mine.quit <- true
-	}()
-}
-
 //Mining a blockheader and returning the nonce value if suceeded
-func (mine *Miner) mining(chunk Chunk) (uint32, error) {
+func Mining_BlockHeader(difficulty float64, bh block.BlockHeader) (uint32, error) {
+	target := Gettarget(difficulty, bh.Bits)
 	for nonce := uint32(0); nonce < MAX_NONCE; nonce++ {
-		chunk.Block.Nonce = nonce
-		if hash := block.Doublesha256_BlockHeader(chunk.Block); hash < chunk.Target {
+		bh.Nonce = nonce
+		if hash := block.Doublesha256_BlockHeader(bh); hash < target {
 			return nonce, nil
+		} else {
 		}
 	}
 	return 0, errors.New("MAX_NONCE reached")
+}
+
+//TODO Calculate the right target depending on the difficulty. This one is totally made up for testing purpose.
+func Gettarget(difficulty float64, bits uint32) string {
+	const padding int = 17
+	var target = ""
+	for i := 0; i < padding; i++ {
+		target = target + "0"
+	}
+	target = target + strconv.Itoa(int(uint32(difficulty)*bits))
+	for i := len(target); i < 64; i++ {
+		target = target + "f"
+	}
+	return target
 }
